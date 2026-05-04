@@ -60,6 +60,25 @@ The simplicity of the converged policy is a direct asset for ASIC implementation
 3. **No feature extraction overhead.** Only two of the 14 statistics need to be computed at runtime. `has_outlier` is a byproduct of the data loading stage (max vs mean comparison). Entropy requires a softmax pass, but this is already computed as part of attention -- it can be accumulated from a previous tile pass or estimated from a small sample.
 4. **Binary precision mode.** The search explored six precision levels and converged on just two (INT8 and FP16). Hardware only needs to support two datapaths, not a full precision-flexible ALU.
 
+### Why Not a Learned Controller?
+
+We considered replacing the threshold-based policy with a learned controller (small MLP or decision tree) that could make more nuanced per-block decisions. We chose not to, for several reasons:
+
+1. **The search already explored complexity.** The evolutionary search had access to 14 input features, 6 precision levels, and 80 iterations of free-form code mutation. It could have evolved arbitrary decision logic -- weighted feature combinations, multi-threshold cascades, lookup tables. It converged on two comparisons because the problem is genuinely separable: the entropy gap between "safe" (~4.3) and "dangerous" (~0.5-1.0) blocks is a canyon, not a crack.
+
+2. **Hardware cost is asymmetric.** A comparator + AND gate costs negligible area and power. Even a tiny MLP (8 weights) requires multipliers, activation logic, weight SRAM, and pipeline stages on the critical path of every attention block. The precision gain, if any, does not justify the silicon budget.
+
+3. **Verification.** Proving a threshold comparator behaves correctly in all cases is trivial. Proving a neural network controller never makes a catastrophic precision decision is an open research problem.
+
+4. **Programmable thresholds capture the upside.** Instead of a fixed `entropy < 2.0`, the threshold is stored in a per-layer register file (`THRESHOLD_REG[layer_idx]`). Profile a model once, find the optimal threshold per layer, program the registers. This provides per-layer adaptation with zero additional logic beyond a small register file.
+
+```
+// Hardware pseudo-logic for precision controller
+precision = (has_outlier AND entropy < THRESHOLD_REG[layer_idx]) ? FP16 : INT8;
+```
+
+This gives ~95% of the adaptability of a learned controller at ~0% of the cost. The only scenario where a learned controller wins is if real model activations reveal a non-linear decision boundary in entropy space -- a hypothesis we will test during real-activation validation (see Next Steps).
+
 ## Limitations
 
 1. **Synthetic data only.** All workloads use `torch.randn` inputs with injected outliers (0.1% of values scaled by 100x). Real LLM activations have different distributional properties -- heavy tails, structured sparsity, layer-dependent ranges.
