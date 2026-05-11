@@ -57,7 +57,7 @@ kit has different names, just substitute them in step 3.
 ```sh
 # On the chamber:
 cd ~/work
-git clone git@github.com:themoddedcube/adaptive-precision-attention.git
+git clone git@github.com:LonghornSilicon/adaptive-precision-attention.git
 cd adaptive-precision-attention/rtl
 ls *.tcl                  # genus.tcl, innovus.tcl, mmmc.tcl
 ```
