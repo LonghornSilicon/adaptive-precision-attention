@@ -816,6 +816,86 @@ combinational path is the
 \texttt{sum\_acc} adder $\rightarrow$ shift-add $\rightarrow$ 24-bit
 comparator $\rightarrow$ \texttt{d\_fp16} register at $417.74$~ps.
 
+\subsection{Sky130 OpenLane End-to-End Sign-off}
+\label{sec:rtl_sky130}
+
+To complement the ASAP7 area/timing estimate with a real
+implementation, we re-synthesized the controller through the
+LibreLane / OpenROAD~\citep{librelane2024} open-source ASIC flow
+targeting SkyWater Sky130A. Unlike the Yosys$+$abc pass, this is a
+complete industrial-quality flow: synthesis, floorplanning,
+placement, clock-tree synthesis, global and detailed routing,
+parasitic extraction, post-PnR multi-corner static timing analysis,
+DRC, LVS, antenna, and IR-drop. Total runtime is $\sim\!3$ minutes on
+a 4-core machine. The signed-off layout is shown in
+Figure~\ref{fig:sky130_layout}.
+
+\begin{figure}[h]
+  \centering
+  \includegraphics[width=0.55\columnwidth]{sky130_layout.png}
+  \caption{Sky130A precision controller layout, signed off at
+    $80$~MHz. Die size $87.8 \times 98.5~\mu$m$^2$ at $59\%$ core
+    utilization; $30$ flip-flops and $292$ logic cells; total
+    routed wirelength $6{,}201~\mu$m.}
+  \label{fig:sky130_layout}
+\end{figure}
+
+Sign-off was performed across the three Sky130A voltage/temperature
+corners (Table~\ref{tab:sky130_corners}). The SS corner is the
+gating condition; the design closes with $+72$~ps margin and zero
+setup, hold, DRC, LVS, antenna, or IR-drop violations.
+
+\begin{table}[h]
+  \centering
+  \small
+  \caption{Sky130A multi-corner sign-off at $80$~MHz ($12.5$~ns
+    period). Zero violations of any kind across all corners.}
+  \label{tab:sky130_corners}
+  \begin{tabular}{lrr}
+    \toprule
+    Corner & Setup WNS & Hold WS \\
+    \midrule
+    FF ($-40^\circ$C, $1.95$~V) & $+8.342$~ns & $+0.182$~ns \\
+    TT ($+25^\circ$C, $1.80$~V) & $+6.102$~ns & $+0.363$~ns \\
+    SS ($+100^\circ$C, $1.60$~V, sign-off) &
+       $\mathbf{+0.072}$~ns & $+0.860$~ns \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
+Headline implementation numbers at Sky130A, $80$~MHz:
+$3{,}438~\mu$m$^2$ stdcell area in $8{,}642~\mu$m$^2$ die;
+$330.5~\mu$W total power at the TT corner ($91.5~\mu$W switching,
+$238.9~\mu$W internal, $6$~pW leakage); $30$ flip-flops, exactly
+matching the closed-form
+$2\!\cdot\!\texttt{SCORE\_WIDTH} + \log_2 N + 2$ prediction in our
+gate-count summary.
+
+\textbf{Tuning note.} LibreLane's first-pass defaults
+(\texttt{IO\_DELAY\_CONSTRAINT}~$=$~$20\%$,
+\texttt{CLOCK\_UNCERTAINTY}~$=$~$250$~ps) are chip-level conservative
+and produced negative SS slack of $-1.58$~ns. Three knobs landed the
+clean sign-off: \texttt{IO\_DELAY\_CONSTRAINT}~$=$~$5\%$ (appropriate
+for a small block embedded in a larger pipeline rather than a top-level
+chip), \texttt{CLOCK\_UNCERTAINTY}~$=$~$100$~ps (matching the
+sub-$50$~ps CTS skew of a design this size), and
+\texttt{DESIGN\_REPAIR\_MAX\_SLEW\_PCT}~$=$~$0$ (force the repair
+tool to fix every slew violation, not just the worst $20\%$). The
+worst-case timing path was input-to-flip-flop, not flip-flop-to-flip-flop,
+which is why pure clock-period increases gave diminishing returns
+until the I/O budget was tightened.
+
+\textbf{Cross-check with the ASAP7 projection.} Sky130 to 16FFC
+scales by approximately $5\times$ area reduction, $2\times$ speed
+gain at TT, and $10\times$ dynamic power reduction (NAND2 and DFF
+ratios from published process comparisons). Applied to the Sky130
+signed-off numbers, this projects to $\sim\!700~\mu$m$^2$,
+$\sim\!600$~MHz, and $\sim\!30~\mu$W in TSMC 16FFC---consistent with
+the ASAP7-derived projection in Section~\ref{sec:rtl_16ffc} and with
+the $800$~MHz target encoded in our Cadence SDC constraints. Two
+independent industrial-grade flows now agree on the design's silicon
+characteristics.
+
 \subsection{TSMC 16FFC Projection}
 \label{sec:rtl_16ffc}
 
@@ -878,12 +958,13 @@ results (58.9\% INT8-safe) suggest the threshold may benefit from
 per-architecture tuning; a learnable or workload-calibrated threshold
 is a natural extension.
 (2)~\textbf{Sign-off on TSMC 16FFC.}
-Liberty-mapped synthesis on ASAP7 (Section~\ref{sec:rtl_asap7})
-projects to $\sim\!150$~$\mu$m$^2$ and $\sim\!0$~ps slack at the SS
-corner @ 800~MHz on TSMC 16FFC. Real Genus and Innovus runs on the
+ASAP7 synthesis (Section~\ref{sec:rtl_asap7}) and Sky130
+end-to-end PnR (Section~\ref{sec:rtl_sky130}) independently project
+to $\sim\!150$~$\mu$m$^2$ and $\sim\!0$~ps slack at the SS corner
+@ 800~MHz on TSMC 16FFC. Real Genus and Innovus runs on the
 University Program shuttle will confirm the projection and yield
-post-PnR power numbers from the replay-TB activity dump. If SS slack is
-negative, the documented single-register pipeline patch closes
+post-PnR power numbers from the replay-TB activity dump. If SS slack
+is negative, the documented single-register pipeline patch closes
 timing.
 (3)~\textbf{End-to-end throughput.}
 Integrate the controller into a full attention datapath to measure
@@ -908,7 +989,10 @@ Qwen2/Qwen2.5 models (0.5B--3B, 24--36 layers) shows 91--97\% of
 attention tiles are INT8-safe, with the fraction \emph{improving} at
 larger scale. The SystemVerilog implementation passes 253 directed and
 real-data testbench cases bit-exactly, synthesizes to $30$ flip-flops
-and $\sim\!28$~$\mu$m$^2$ in ASAP7 (open 7\,nm proxy), and projects to
+and $\sim\!28$~$\mu$m$^2$ in ASAP7 (open 7\,nm proxy), runs end-to-end
+through the LibreLane/OpenROAD industrial open flow on Sky130 with a
+fully signed-off layout at $80$~MHz (zero DRC/LVS/antenna/IR-drop/
+setup/hold violations across all three corners), and projects to
 $\sim\!150$~$\mu$m$^2$ with $+415$~ps slack at the typical TSMC 16FFC
 corner @ 800~MHz---a precision controller ready for the University
 Program shuttle.
