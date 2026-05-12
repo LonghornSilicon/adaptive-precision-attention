@@ -1,0 +1,226 @@
+name: CI
+
+# Triggers: every push or PR to master, plus manual dispatch.
+# Skip on doc-only changes to save runner time.
+on:
+  push:
+    branches: [master]
+    paths-ignore:
+      - 'README.md'
+      - 'memory/**'
+  pull_request:
+    branches: [master]
+  workflow_dispatch:
+
+# When a new commit lands on the same branch, cancel the older in-progress run.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # ------------------------------------------------------------------
+  # 1. Functional verification — iverilog runs the 253 TB cases.
+  # Light job, runs on GitHub-hosted Ubuntu.
+  # ------------------------------------------------------------------
+  rtl-functional-verification:
+    name: RTL functional verification (253 tests)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: pip
+
+      - name: Install iverilog + numpy
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq iverilog
+          pip install --user numpy
+
+      - name: Generate replay test vectors
+        working-directory: rtl
+        run: make testvectors
+
+      - name: Directed testbench (110 cases)
+        working-directory: rtl
+        run: |
+          make sim 2>&1 | tee /tmp/sim.log
+          grep -q "ALL TESTS PASSED" /tmp/sim.log || (echo "Directed TB failed"; exit 1)
+
+      - name: Replay testbench (143 cases from real attention scores)
+        working-directory: rtl
+        run: |
+          make sim_realdata 2>&1 | tee /tmp/sim_realdata.log
+          grep -q "Tests: 143  Pass: 143" /tmp/sim_realdata.log \
+            || grep -q "ALL TESTS PASSED" /tmp/sim_realdata.log \
+            || (echo "Replay TB failed"; exit 1)
+
+  # ------------------------------------------------------------------
+  # 2. RTL synthesis — Yosys sweep across tile/bit-width axes.
+  # Light job, runs on GitHub-hosted Ubuntu.
+  # ------------------------------------------------------------------
+  rtl-synthesis:
+    name: RTL synthesis (Yosys)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Yosys
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq yosys
+
+      - name: Synthesize precision_controller
+        working-directory: rtl
+        run: |
+          yosys -p "read_verilog -sv precision_controller.sv; \
+                    synth -flatten -top precision_controller; \
+                    stat" 2>&1 | tee synth.log
+          # Assert the FF count matches the closed-form prediction.
+          # For default params (BLOCK_M=BLOCK_N=64, SCORE_WIDTH=8):
+          #   FFs = 2*8 + log2(4096) + 2 = 30
+          FF_COUNT=$(grep -oE "DFF[A-Z_]*\s+[0-9]+" synth.log | awk '{sum+=$2} END {print sum}')
+          echo "FF count: $FF_COUNT (expected 30)"
+          [ "$FF_COUNT" = "30" ] || (echo "FF count mismatch"; exit 1)
+
+      - name: Upload synth log
+        uses: actions/upload-artifact@v4
+        with:
+          name: yosys-synth-log
+          path: rtl/synth.log
+          retention-days: 30
+
+  # ------------------------------------------------------------------
+  # 3. OpenLane Sky130 sign-off — the heavy one.
+  # ~3-10 min runtime, needs Docker. Runs on self-hosted runner.
+  # See docs/ci_setup.md for runner setup instructions.
+  # ------------------------------------------------------------------
+  openlane-sky130:
+    name: OpenLane Sky130 sign-off
+    runs-on: [self-hosted, linux, x64]
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Confirm runner has librelane + docker
+        run: |
+          which docker
+          which librelane || pip install --user librelane
+          docker --version
+          librelane --version
+
+      - name: Run LibreLane Sky130 flow
+        working-directory: openlane/precision_controller
+        run: |
+          # Flag order matters: --docker-no-tty must precede --dockerized.
+          librelane --docker-no-tty --dockerized --condensed config.json
+
+      - name: Assert sign-off (zero violations across all corners)
+        working-directory: openlane/precision_controller
+        run: |
+          LAST_RUN=$(ls -1 runs/ | tail -1)
+          echo "Validating $LAST_RUN"
+          python3 - <<PYEOF
+          import json, sys
+          m = json.load(open(f"runs/$LAST_RUN/final/metrics.json"))
+          checks = {
+              "setup_vio":      m["timing__setup_vio__count"],
+              "hold_vio":       m["timing__hold_vio__count"],
+              "drc_error":      m["magic__drc_error__count"],
+              "lvs_error":      m["design__lvs_error__count"],
+              "antenna_vio":    m["route__antenna_violation__count"],
+              "powergrid_vio":  m["design__power_grid_violation__count"],
+          }
+          for name, value in checks.items():
+              print(f"  {name}: {value}")
+          if any(v != 0 for v in checks.values()):
+              print("SIGN-OFF FAILED")
+              sys.exit(1)
+          print("SIGN-OFF PASSED — all corners clean")
+          print(f"  SS WNS:   {m['timing__setup__ws__corner:max_ss_100C_1v60']:+.3f} ns")
+          print(f"  Area:     {m['design__instance__area__stdcell']:.0f} um^2")
+          print(f"  Power TT: {m['power__total']*1e6:.1f} uW")
+          PYEOF
+
+      - name: Upload final GDS + metrics
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: sky130-signoff
+          path: |
+            openlane/precision_controller/runs/*/final/gds/*.gds
+            openlane/precision_controller/runs/*/final/metrics.json
+            openlane/precision_controller/runs/*/final/render/*.png
+          retention-days: 30
+          if-no-files-found: warn
+
+  # ------------------------------------------------------------------
+  # 4. Paper build — compile LaTeX to PDF.
+  # Light job, ~1 min. Runs on GitHub-hosted Ubuntu.
+  # ------------------------------------------------------------------
+  paper-build:
+    name: Compile paper PDF
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install TeXLive
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq \
+            texlive-latex-base texlive-latex-recommended texlive-latex-extra \
+            texlive-fonts-recommended texlive-bibtex-extra texlive-publishers
+
+      - name: Build PDF
+        working-directory: paper
+        run: |
+          pdflatex -interaction=nonstopmode -halt-on-error adaptive_precision_attention.tex
+          bibtex  adaptive_precision_attention
+          pdflatex -interaction=nonstopmode -halt-on-error adaptive_precision_attention.tex
+          pdflatex -interaction=nonstopmode -halt-on-error adaptive_precision_attention.tex
+          ls -lh adaptive_precision_attention.pdf
+
+      - name: Check for undefined refs
+        working-directory: paper
+        run: |
+          if grep -E "undefined|Citation .* undefined" adaptive_precision_attention.log; then
+            echo "Undefined references found"
+            exit 1
+          fi
+          echo "All references resolved"
+
+      - name: Upload PDF
+        uses: actions/upload-artifact@v4
+        with:
+          name: paper-pdf
+          path: paper/adaptive_precision_attention.pdf
+          retention-days: 30
+
+# ====================================================================
+# Future components — uncomment as each lands.
+# ====================================================================
+#
+#  kv-cache-engine-verification:
+#    name: KV Cache Engine — functional verification
+#    runs-on: ubuntu-latest
+#    steps: ...
+#
+#  token-importance-unit-verification:
+#    name: Token Importance Unit — functional verification
+#    runs-on: ubuntu-latest
+#    steps: ...
+#
+#  memory-hierarchy-controller-verification:
+#    name: Memory Hierarchy Controller — functional verification
+#    runs-on: ubuntu-latest
+#    steps: ...
+#
+#  full-chip-integration:
+#    name: Full-chip integration sim + OpenLane
+#    needs: [openlane-sky130, kv-cache-engine-verification,
+#            token-importance-unit-verification,
+#            memory-hierarchy-controller-verification]
+#    runs-on: [self-hosted, linux, x64]
+#    steps: ...
