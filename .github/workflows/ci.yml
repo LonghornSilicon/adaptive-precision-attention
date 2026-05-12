@@ -25,6 +25,9 @@ jobs:
   rtl-functional-verification:
     name: RTL functional verification (253 tests)
     runs-on: ubuntu-latest
+    environment:
+      name: rtl-functional-verification
+      url: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
     steps:
       - uses: actions/checkout@v4
 
@@ -74,6 +77,9 @@ jobs:
   rtl-synthesis:
     name: RTL synthesis (Yosys)
     runs-on: ubuntu-latest
+    environment:
+      name: rtl-synthesis
+      url: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
     steps:
       - uses: actions/checkout@v4
 
