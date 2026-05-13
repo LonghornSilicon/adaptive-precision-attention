@@ -27,3 +27,11 @@ paper/*.blg
 paper/*.log
 paper/*.out
 paper/*.toc
+docs/*.aux
+docs/*.log
+docs/*.out
+docs/*.toc
+docs/isa/*.aux
+docs/isa/*.log
+docs/isa/*.out
+docs/isa/*.toc
