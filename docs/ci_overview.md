@@ -5,9 +5,12 @@ saved, and where the FPGA bitstream step will plug in when the
 ZCU102/104 arrives.
 
 The pipeline lives in [`.github/workflows/ci.yml`](../.github/workflows/ci.yml).
-Setup for the self-hosted runner is in [`docs/ci_setup.md`](ci_setup.md).
-The runner `longhorn-cloud-1` is registered at the **organization level**
-(`LonghornSilicon`) so every block repo shares the same hardware.
+It is a thin caller for the shared workflow at
+`LonghornSilicon/.github/.github/workflows/block-ci.yml@main`, which
+runs all the actual jobs on GitHub-hosted Ubuntu (no self-hosted
+runner required). The shared workflow now includes line-coverage and
+formal-equivalence gates in addition to functional verification,
+synthesis, OpenLane Sky130 sign-off, and paper build.
 
 ## Trigger flow
 
