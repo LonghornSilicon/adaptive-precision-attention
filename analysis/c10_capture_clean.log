@@ -1,0 +1,38 @@
+[setup] model=Qwen/Qwen2-0.5B  n_samples=4  mode=A (clean FP16)
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+Loading weights:   0%|          | 0/290 [00:00<?, ?it/s]Loading weights: 100%|██████████| 290/290 [00:00<00:00, 4380.22it/s]
+[setup] hooks on 48 k_proj+v_proj modules
+[transformers] Token indices sequence length is longer than the specified maximum sequence length for this model (298938 > 32768). Running this sequence through the model will result in indexing errors
+[setup] 4 chunks prepared
+  chunk 1/4 ok
+  chunk 2/4 ok
+  chunk 3/4 ok
+  chunk 4/4 ok
+
+[setup] forward done (0.6s); rotating per layer
+  L 0: K= 4096  K_std=0.1250  K_max=0.289  (raw_max K=153.75 V=0.30)
+  L 1: K= 4096  K_std=0.1249  K_max=0.419  (raw_max K=181.50 V=3.15)
+  L 2: K= 4096  K_std=0.1246  K_max=0.417  (raw_max K=52.38 V=1.94)
+  L 3: K= 4096  K_std=0.1247  K_max=0.477  (raw_max K=47.59 V=4.02)
+  L 4: K= 4096  K_std=0.1238  K_max=0.462  (raw_max K=32.03 V=3.67)
+  L 5: K= 4096  K_std=0.1243  K_max=0.499  (raw_max K=14.05 V=5.56)
+  L 6: K= 4096  K_std=0.1249  K_max=0.427  (raw_max K=26.75 V=4.36)
+  L 7: K= 4096  K_std=0.1250  K_max=0.477  (raw_max K=14.76 V=3.73)
+  L 8: K= 4096  K_std=0.1246  K_max=0.444  (raw_max K=16.64 V=3.67)
+  L 9: K= 4096  K_std=0.1250  K_max=0.575  (raw_max K=17.95 V=6.15)
+  L10: K= 4096  K_std=0.1249  K_max=0.447  (raw_max K=53.84 V=4.23)
+  L11: K= 4096  K_std=0.1250  K_max=0.487  (raw_max K=15.08 V=4.58)
+  L12: K= 4096  K_std=0.1248  K_max=0.509  (raw_max K=10.70 V=4.66)
+  L13: K= 4096  K_std=0.1247  K_max=0.470  (raw_max K=14.02 V=4.21)
+  L14: K= 4096  K_std=0.1250  K_max=0.506  (raw_max K=15.83 V=6.09)
+  L15: K= 4096  K_std=0.1247  K_max=0.503  (raw_max K=12.76 V=3.76)
+  L16: K= 4096  K_std=0.1249  K_max=0.542  (raw_max K=13.70 V=7.23)
+  L17: K= 4096  K_std=0.1243  K_max=0.467  (raw_max K=15.54 V=4.51)
+  L18: K= 4096  K_std=0.1250  K_max=0.514  (raw_max K=14.60 V=7.22)
+  L19: K= 4096  K_std=0.1250  K_max=0.469  (raw_max K=14.10 V=5.80)
+  L20: K= 4096  K_std=0.1250  K_max=0.515  (raw_max K=12.37 V=11.19)
+  L21: K= 4096  K_std=0.1250  K_max=0.505  (raw_max K=12.03 V=14.75)
+  L22: K= 4096  K_std=0.1248  K_max=0.478  (raw_max K=14.70 V=16.53)
+  L23: K= 4096  K_std=0.1249  K_max=0.455  (raw_max K=113.25 V=8.42)
+
+[done] forward=0.6s  rotate=20.7s  wrote /home/chaithu/lhs/adaptive-precision-attention/analysis/c10_captures_clean.npz

@@ -1,0 +1,38 @@
+[setup] model=Qwen/Qwen2-0.5B  mode=C_prenorm  n_samples=4  seq_len=512
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+Loading weights:   0%|          | 0/290 [00:00<?, ?it/s]Loading weights: 100%|██████████| 290/290 [00:00<00:00, 4324.98it/s]
+[transformers] Token indices sequence length is longer than the specified maximum sequence length for this model (298938 > 32768). Running this sequence through the model will result in indexing errors
+[setup] 4 chunks prepared
+  chunk 1/4: nll=2848.3481 ntok=511
+  chunk 2/4: nll=3590.9482 ntok=511
+  chunk 3/4: nll=3607.8953 ntok=511
+  chunk 4/4: nll=3542.7415 ntok=511
+
+[capture] wall=12.6s  PPL=771.777  (sanity vs C11 C_prenorm reference)
+  L 0: K=  4096 vecs  V=  4096 vecs  K_std=0.1250  K_max=0.365
+  L 1: K=  4096 vecs  V=  4096 vecs  K_std=0.1250  K_max=0.270
+  L 2: K=  4096 vecs  V=  4096 vecs  K_std=0.1250  K_max=0.381
+  L 3: K=  4096 vecs  V=  4096 vecs  K_std=0.1250  K_max=0.517
+  L 4: K=  4096 vecs  V=  4096 vecs  K_std=0.1250  K_max=0.527
+  L 5: K=  4096 vecs  V=  4096 vecs  K_std=0.1250  K_max=0.507
+  L 6: K=  4096 vecs  V=  4096 vecs  K_std=0.1250  K_max=0.442
+  L 7: K=  4096 vecs  V=  4096 vecs  K_std=0.1250  K_max=0.516
+  L 8: K=  4096 vecs  V=  4096 vecs  K_std=0.1250  K_max=0.475
+  L 9: K=  4096 vecs  V=  4096 vecs  K_std=0.1250  K_max=0.492
+  L10: K=  4096 vecs  V=  4096 vecs  K_std=0.1250  K_max=0.466
+  L11: K=  4096 vecs  V=  4096 vecs  K_std=0.1250  K_max=0.490
+  L12: K=  4096 vecs  V=  4096 vecs  K_std=0.1250  K_max=0.529
+  L13: K=  4096 vecs  V=  4096 vecs  K_std=0.1250  K_max=0.499
+  L14: K=  4096 vecs  V=  4096 vecs  K_std=0.1250  K_max=0.476
+  L15: K=  4096 vecs  V=  4096 vecs  K_std=0.1250  K_max=0.503
+  L16: K=  4096 vecs  V=  4096 vecs  K_std=0.1250  K_max=0.530
+  L17: K=  4096 vecs  V=  4096 vecs  K_std=0.1250  K_max=0.501
+  L18: K=  4096 vecs  V=  4096 vecs  K_std=0.1250  K_max=0.483
+  L19: K=  4096 vecs  V=  4096 vecs  K_std=0.1250  K_max=0.506
+  L20: K=  4096 vecs  V=  4096 vecs  K_std=0.1250  K_max=0.492
+  L21: K=  4096 vecs  V=  4096 vecs  K_std=0.1250  K_max=0.520
+  L22: K=  4096 vecs  V=  4096 vecs  K_std=0.1250  K_max=0.506
+  L23: K=  4096 vecs  V=  4096 vecs  K_std=0.1250  K_max=0.434
+
+[done] wrote /home/chaithu/lhs/adaptive-precision-attention/analysis/c10_captures.npz
+[done] wrote /home/chaithu/lhs/adaptive-precision-attention/analysis/c10_capture_stats.json

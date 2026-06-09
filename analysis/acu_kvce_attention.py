@@ -52,6 +52,19 @@ KVCE_LAYERS: set | None = None
 KVCE_REF_PATH: str = os.environ.get(
     "KVCE_REF", "/home/chaithu/lhs/kv-cache-engine/sw/reference_model"
 )
+# Path to a per-layer centroid table JSON (the output of
+# c10_retune_centroids.py). None = every layer uses the chip default
+# table (the C11 path). Set via set_centroid_tables(); change forces
+# a pool rebuild on next forward.
+CENTROID_TABLES_PATH: str | None = None
+
+# Capture mode: when enabled, KVCE round-trips also collect the
+# post-rotation coordinates per layer. Used by c10_capture_per_layer.py
+# to gather distributions for Lloyd-Max retraining. CAPTURE_BUFFER is
+# keyed by layer_idx -> {"K": list[ndarray], "V": list[ndarray]}; drain
+# with pop_capture_buffer().
+CAPTURE_MODE: bool = False
+CAPTURE_BUFFER: dict = {}
 TILE = 64
 PC_THRESHOLD = 10  # max * N > 10 * sum -> FP16
 
@@ -83,6 +96,41 @@ def set_kvce_layers(layers: set | list | None) -> None:
     KVCE_LAYERS = None if layers is None else set(int(l) for l in layers)
 
 
+def set_centroid_tables(path: str | None) -> None:
+    """Point at a per-layer centroid override JSON (from
+    c10_retune_centroids.py). None reverts to the chip default table on
+    every layer. The pool rebuilds on the next forward."""
+    global CENTROID_TABLES_PATH
+    CENTROID_TABLES_PATH = path
+
+
+def set_capture_mode(on: bool) -> None:
+    """Enable/disable post-rotation capture during KVCE round-trips.
+    Captures land in CAPTURE_BUFFER keyed by layer_idx; drain with
+    pop_capture_buffer()."""
+    global CAPTURE_MODE, CAPTURE_BUFFER
+    CAPTURE_MODE = bool(on)
+    if on:
+        CAPTURE_BUFFER = {}
+
+
+def pop_capture_buffer() -> dict:
+    """Return the captures collected since the last call (or the last
+    set_capture_mode) and clear. Shape: {layer_idx: {"K": ndarray, "V": ndarray}}.
+    Caller is responsible for disabling capture mode if desired."""
+    global CAPTURE_BUFFER
+    out = {}
+    for L, kv in CAPTURE_BUFFER.items():
+        out[L] = {
+            "K": (np.concatenate(kv["K"], axis=0)
+                  if kv["K"] else np.zeros((0, 0), dtype=np.float32)),
+            "V": (np.concatenate(kv["V"], axis=0)
+                  if kv["V"] else np.zeros((0, 0), dtype=np.float32)),
+        }
+    CAPTURE_BUFFER = {}
+    return out
+
+
 # ---------------------------------------------------------------------------
 # GQA repeat
 # ---------------------------------------------------------------------------
@@ -102,14 +150,30 @@ def _repeat_kv(x: torch.Tensor, n_rep: int) -> torch.Tensor:
 # KVCE round-trip with GPU<->CPU transfer
 # ---------------------------------------------------------------------------
 def _kvce_roundtrip_tensor(
-    K: torch.Tensor, V: torch.Tensor, kvce_mode: str
+    K: torch.Tensor, V: torch.Tensor, kvce_mode: str, layer_idx: int = -1,
 ) -> Tuple[torch.Tensor, torch.Tensor]:
-    """K, V: [B, Hkv, N, D] fp16/bf16/fp32. Round-tripped through KVCE."""
+    """K, V: [B, Hkv, N, D] fp16/bf16/fp32. Round-tripped through KVCE.
+    layer_idx selects the per-layer centroid engine (when a centroid
+    table is set); -1 = chip default.
+
+    Side-effect: when CAPTURE_MODE is on, append post-rotation coords
+    for this call to CAPTURE_BUFFER[layer_idx]."""
     B, H, N, D = K.shape
     device, dtype = K.device, K.dtype
     K_cpu = K.detach().float().cpu().contiguous().view(-1, D).numpy()
     V_cpu = V.detach().float().cpu().contiguous().view(-1, D).numpy()
-    K_hat, V_hat = kv_roundtrip(KVCE_REF_PATH, K_cpu, V_cpu, mode=kvce_mode)
+    K_hat, V_hat, cap = kv_roundtrip(
+        KVCE_REF_PATH, K_cpu, V_cpu, mode=kvce_mode,
+        layer_idx=layer_idx,
+        centroid_tables_path=CENTROID_TABLES_PATH,
+        capture=CAPTURE_MODE,
+    )
+    if CAPTURE_MODE and cap is not None:
+        bkt = CAPTURE_BUFFER.setdefault(int(layer_idx), {"K": [], "V": []})
+        if cap["K"].size:
+            bkt["K"].append(cap["K"])
+        if cap["V"].size:
+            bkt["V"].append(cap["V"])
     K_hat_t = torch.from_numpy(K_hat).view(B, H, N, D).to(device=device, dtype=dtype)
     V_hat_t = torch.from_numpy(V_hat).view(B, H, N, D).to(device=device, dtype=dtype)
     return K_hat_t, V_hat_t
@@ -174,7 +238,11 @@ def acu_kvce_attention(
     # ---- KVCE round-trip for C / E configs ----
     if base in ("C", "E"):
         t_kv0 = time.time()
-        K_used, V_used = _kvce_roundtrip_tensor(key, value, kvce_mode=kvce_mode)
+        layer_idx = getattr(module, "layer_idx", None)
+        layer_idx = int(layer_idx) if layer_idx is not None else -1
+        K_used, V_used = _kvce_roundtrip_tensor(
+            key, value, kvce_mode=kvce_mode, layer_idx=layer_idx,
+        )
         CALL_STATS["kvce_ms"] += (time.time() - t_kv0) * 1000.0
     else:
         K_used, V_used = key, value

@@ -362,6 +362,103 @@ findings.
 
 ---
 
+## 2026-06-09 -- C10 plumbing + Path A revival via QJL alpha co-tune
+
+End-to-end wire-up of the per-layer Lloyd-Max centroid retuning
+pipeline (KVCE side landed in `kv-cache-engine@2bf08b5` and the
+follow-on alpha override). Five new analysis scripts, two refactors:
+
+- `analysis/kvce_pool.py`: per-layer engine support
+  (`dict[layer_idx → engine]`), capture mode, centroid_tables_path arg
+  to `get_pool` / `kv_roundtrip`. Honors `qjl_scale` per layer in the
+  table JSON.
+- `analysis/acu_kvce_attention.py`: `set_centroid_tables(path)`,
+  `set_capture_mode(on)`, `pop_capture_buffer()`. Passes
+  `module.layer_idx` to the pool so per-layer engines route correctly.
+- `analysis/c10_capture_per_layer.py`: capture under C_prenorm with
+  KVCE on every layer (production distribution).
+- `analysis/c10_capture_clean.py`: capture under mode A via forward
+  hooks (clean per-layer K/V before any KVCE noise).
+- `analysis/c10_retune_centroids.py`: Lloyd-Max per layer + optional
+  closed-form QJL alpha calibration (`centroid_lloyd_max.calibrate_qjl_scale`).
+- `analysis/c10_run_ppl.py`: baseline_A + default + retuned PPL with
+  per-config summary JSON.
+
+### First test: naive Path A regresses
+
+Smoke (n=4) with retuned centroids + default sqrt(pi/2) alpha:
+
+| Retune scope          | PPL    | vs default | Verdict |
+|-----------------------|-------:|-----------:|---------|
+| all 24 layers         | 2090.8 | +0.997 nat | regress |
+| {L0, L1, L23} only    | 2359.6 | +1.118 nat | regress |
+| L0 alone              | 2520.8 | +1.184 nat | regress |
+
+L0-only regressing rules out cascade and capture-quality artefacts.
+Diagnosis: per-coord MSE dropped 12% on L0 but whole-vector cos
+dropped 0.0020 -- the codec's QJL residual correction uses a fixed
+sqrt(pi/2) scaling that assumes Gaussian residuals; retuning shifts
+the residual distribution and miscalibrates QJL. Documented in
+`kv-cache-engine/findings/path_a_qjl_coupling.md`.
+
+### Second test: alpha co-tune flips the result
+
+KVCE side shipped `qjl_scale` override + `calibrate_qjl_scale`
+closed-form MSE-min alpha. Re-ran the same captures, now emitting
+per-layer alpha alongside centroids. All calibrated alphas landed at
+~0.49 (vs default sqrt(pi/2) ~1.253) -- matching the analytic
+MSE-min for d=64 in the calibrator's docstring.
+
+n=16 results:
+
+| Config                                  | PPL    | log-gap | recovered |
+|-----------------------------------------|-------:|--------:|----------:|
+| baseline A                              |  21.06 |       0 |        -- |
+| C_prenorm default (sqrt(pi/2), default) | 1191.13 | +4.035 |        -- |
+| default centroids + alpha=0.49 (diag)   |  548.63 | +3.260 | **+19.2%** |
+| dirty captures retune + alpha           |  506.87 | +3.181 | **+21.2%** |
+| clean captures retune + alpha           |  567.85 | +3.294 | **+18.4%** |
+
+Two findings:
+
+1. **Alpha dominates.** Default centroids + alpha=0.49 alone
+   recovers 19.2 of the 21.2 percentage points -- ~91% of the win
+   comes from fixing the QJL scaling, not from retuning centroids.
+   This collapses Path A's complexity: ship chip-default centroids
+   plus a single per-model-calibrated alpha; the per-layer `tuser`
+   extension for centroid routing is no longer required for this
+   recovery level.
+
+2. **Clean captures lost to dirty captures (surprise).** Clean
+   captures from mode A (counterfactual: what L1 would see if L0
+   were FP16) underfit the deployed-distribution L1 actually sees
+   (where L0 is KVCE-corrupted). Rule: capture under the
+   configuration you'll deploy under, not a clean reference.
+
+### What this changes in the chip story
+
+- C12 noise floor at full-deploy bit budget drops from +5.64 to
+  +4.81 bits/tok on Qwen2-0.5B (21.2% recovery).
+- Centroid override is still useful at +2% on top of alpha, AND was
+  the infrastructure that made the alpha diagnostic possible.
+- Path C with `turbo8` on {L0, L1, L23} now has +19% of "alpha
+  alone" priced in -- the marginal value of `turbo8` is on the
+  remaining +3.18 nats, not the original +4.04.
+
+Stored artefacts:
+- `analysis/c10_*` (all scripts + JSON tables + per-config summaries)
+- `analysis/c10_captures{,_clean}.npz` (capture corpora)
+- `analysis/c10_ppl_runs.jsonl` (append-only per-config rows)
+- `analysis/c10_ppl_summary_{dirty,defaultplus,clean}_alpha_n16.json`
+- `analysis/c10_n16_sweep.log` (combined log)
+
+Cross-ref: `kv-cache-engine/findings/path_a_qjl_coupling.md`
+sections 1-6 documents the negative-result diagnosis; the
+revival-status banner at top of that doc cites the n=16 numbers
+above.
+
+---
+
 ## Discipline log (incidents -> rules added)
 
 - `~/.cache` is root-owned on this DGX Spark host. Rule: every HF run
@@ -372,3 +469,18 @@ findings.
 - The `/home/shadeform/...` hard-codes are an anti-pattern. Rule: use
   `$KVCE_REF` env var with sibling-clone fallback in every script that
   imports the KVCE ref.
+- Per-coord MSE is NOT a valid proxy for end-to-end attention quality
+  in this codec. The first centroid retune passed every existing
+  per-coord gate AND regressed PPL by 2.7x. Rule: any centroid-table
+  change must measure whole-vector cos (or equivalent rotation-
+  preserving metric) before claiming success. A regression test on
+  cos is requested in `kv-cache-engine/findings/path_a_qjl_coupling.md` §5.3.
+- The QJL alpha is coupled to the centroid table. Any centroid
+  override requires a matching alpha override; the codec's default
+  sqrt(pi/2) only holds for Gaussian residuals. Rule: emit
+  `qjl_scale` alongside `centroids` in every per-layer table; never
+  ship one without the other.
+- Capture corpora must come from the deployed configuration, not a
+  clean reference. The clean-mode-A captures lost ~3 percentage
+  points of recovery to the dirty C_prenorm captures because the
+  deployed L1+ distributions are post-KVCE-noise, not FP16-clean.

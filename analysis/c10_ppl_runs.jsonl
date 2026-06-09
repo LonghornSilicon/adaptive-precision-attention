@@ -1,0 +1,16 @@
+{"ts": "2026-06-09T12:42:56", "label": "baseline_A", "mode": "A", "centroid_tables_path": null, "ppl_pooled": 17.4641453741606, "tokens_total": 2044, "wall_s": 0.5994946956634521}
+{"ts": "2026-06-09T12:43:08", "label": "C_prenorm_default", "mode": "C_prenorm", "centroid_tables_path": null, "ppl_pooled": 771.7766981469692, "tokens_total": 2044, "wall_s": 11.875176191329956}
+{"ts": "2026-06-09T12:43:21", "label": "C_prenorm_retuned", "mode": "C_prenorm", "centroid_tables_path": "/home/chaithu/lhs/adaptive-precision-attention/analysis/c10_centroid_tables.json", "ppl_pooled": 2090.8276494007982, "tokens_total": 2044, "wall_s": 12.640010595321655}
+{"ts": "2026-06-09T12:45:52", "label": "baseline_A", "mode": "A", "centroid_tables_path": null, "ppl_pooled": 17.4641453741606, "tokens_total": 2044, "wall_s": 0.6030142307281494}
+{"ts": "2026-06-09T12:46:04", "label": "C_prenorm_retuned", "mode": "C_prenorm", "centroid_tables_path": "analysis/c10_centroid_tables_active.json", "ppl_pooled": 2359.5992090763966, "tokens_total": 2044, "wall_s": 11.89738154411316}
+{"ts": "2026-06-09T12:47:12", "label": "baseline_A", "mode": "A", "centroid_tables_path": null, "ppl_pooled": 17.4641453741606, "tokens_total": 2044, "wall_s": 0.5932450294494629}
+{"ts": "2026-06-09T12:47:24", "label": "C_prenorm_retuned", "mode": "C_prenorm", "centroid_tables_path": "analysis/c10_centroid_tables_l0only.json", "ppl_pooled": 2520.7992420142696, "tokens_total": 2044, "wall_s": 11.982789278030396}
+{"ts": "2026-06-09T16:36:11", "label": "baseline_A", "mode": "A", "centroid_tables_path": null, "ppl_pooled": 17.4641453741606, "tokens_total": 2044, "wall_s": 0.611140251159668}
+{"ts": "2026-06-09T16:36:23", "label": "C_prenorm_retuned", "mode": "C_prenorm", "centroid_tables_path": "analysis/c10_centroid_tables_alpha.json", "ppl_pooled": 658.622495769139, "tokens_total": 2044, "wall_s": 11.83306884765625}
+{"ts": "2026-06-09T16:39:26", "label": "baseline_A", "mode": "A", "centroid_tables_path": null, "ppl_pooled": 21.06380817500356, "tokens_total": 8176, "wall_s": 0.9727590084075928}
+{"ts": "2026-06-09T16:40:11", "label": "C_prenorm_default", "mode": "C_prenorm", "centroid_tables_path": null, "ppl_pooled": 1191.1332852812575, "tokens_total": 8176, "wall_s": 44.395628690719604}
+{"ts": "2026-06-09T16:40:56", "label": "C_prenorm_retuned", "mode": "C_prenorm", "centroid_tables_path": "analysis/c10_centroid_tables_alpha.json", "ppl_pooled": 506.8681347596578, "tokens_total": 8176, "wall_s": 45.091675758361816}
+{"ts": "2026-06-09T16:41:03", "label": "baseline_A", "mode": "A", "centroid_tables_path": null, "ppl_pooled": 21.06380817500356, "tokens_total": 8176, "wall_s": 0.9794940948486328}
+{"ts": "2026-06-09T16:41:48", "label": "C_prenorm_retuned", "mode": "C_prenorm", "centroid_tables_path": "analysis/c10_centroid_tables_defaultplus\u03b1.json", "ppl_pooled": 548.6324389154771, "tokens_total": 8176, "wall_s": 44.76426386833191}
+{"ts": "2026-06-09T16:41:54", "label": "baseline_A", "mode": "A", "centroid_tables_path": null, "ppl_pooled": 21.06380817500356, "tokens_total": 8176, "wall_s": 0.9800510406494141}
+{"ts": "2026-06-09T16:42:40", "label": "C_prenorm_retuned", "mode": "C_prenorm", "centroid_tables_path": "analysis/c10_centroid_tables_clean_alpha.json", "ppl_pooled": 567.8526529254034, "tokens_total": 8176, "wall_s": 45.14893937110901}

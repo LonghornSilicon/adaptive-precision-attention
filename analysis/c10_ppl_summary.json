@@ -1,0 +1,14 @@
+{
+  "model": "Qwen/Qwen2-0.5B",
+  "mode": "C_prenorm",
+  "n_samples": 4,
+  "seq_len": 512,
+  "tables": "analysis/c10_centroid_tables_alpha.json",
+  "ppl_baseline_A": 17.4641453741606,
+  "ppl_default_centroids": 771.7766981469692,
+  "ppl_retuned_centroids": 658.622495769139,
+  "log_gap_default_nats": 3.7885453136466487,
+  "log_gap_retuned_nats": 3.6300005828797706,
+  "log_gap_recovered_nats": 0.15854473076687814,
+  "fraction_recovered": 0.04184844515275747
+}

@@ -1,0 +1,29 @@
+[retune] captures: /home/chaithu/lhs/adaptive-precision-attention/analysis/c10_captures.npz
+[retune] layers: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23]
+[retune] n_levels=8  separate_kv=False
+  L 0: range [-0.2423,+0.2399]  alpha=0.4962  std=0.1249  n_samples=400000
+  L 1: range [-0.2076,+0.2273]  alpha=0.4944  std=0.1250  n_samples=400000
+  L 2: range [-0.2554,+0.2489]  alpha=0.4912  std=0.1250  n_samples=400000
+  L 3: range [-0.2408,+0.2675]  alpha=0.4964  std=0.1248  n_samples=400000
+  L 4: range [-0.2455,+0.2441]  alpha=0.4956  std=0.1249  n_samples=400000
+  L 5: range [-0.2528,+0.2491]  alpha=0.4933  std=0.1250  n_samples=400000
+  L 6: range [-0.2475,+0.2369]  alpha=0.4933  std=0.1249  n_samples=400000
+  L 7: range [-0.2606,+0.2427]  alpha=0.4943  std=0.1247  n_samples=400000
+  L 8: range [-0.2586,+0.2524]  alpha=0.4951  std=0.1250  n_samples=400000
+  L 9: range [-0.2567,+0.2545]  alpha=0.4972  std=0.1249  n_samples=400000
+  L10: range [-0.2554,+0.2498]  alpha=0.4927  std=0.1250  n_samples=400000
+  L11: range [-0.2598,+0.2574]  alpha=0.4952  std=0.1250  n_samples=400000
+  L12: range [-0.2576,+0.2555]  alpha=0.4873  std=0.1251  n_samples=400000
+  L13: range [-0.2514,+0.2599]  alpha=0.4960  std=0.1250  n_samples=400000
+  L14: range [-0.2461,+0.2613]  alpha=0.4935  std=0.1250  n_samples=400000
+  L15: range [-0.2605,+0.2567]  alpha=0.4923  std=0.1250  n_samples=400000
+  L16: range [-0.2712,+0.2562]  alpha=0.4930  std=0.1250  n_samples=400000
+  L17: range [-0.2516,+0.2643]  alpha=0.4925  std=0.1250  n_samples=400000
+  L18: range [-0.2564,+0.2575]  alpha=0.4902  std=0.1250  n_samples=400000
+  L19: range [-0.2582,+0.2501]  alpha=0.4914  std=0.1250  n_samples=400000
+  L20: range [-0.2661,+0.2407]  alpha=0.4995  std=0.1249  n_samples=400000
+  L21: range [-0.2675,+0.2563]  alpha=0.4936  std=0.1251  n_samples=400000
+  L22: range [-0.2581,+0.2452]  alpha=0.4980  std=0.1250  n_samples=400000
+  L23: range [-0.2581,+0.2553]  alpha=0.5015  std=0.1249  n_samples=400000
+
+[done] wrote analysis/c10_centroid_tables_alpha.json  wall=2.1s
