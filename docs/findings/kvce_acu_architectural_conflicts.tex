@@ -104,11 +104,11 @@ closed and what the candidate options are.
 \textbf{\#} & \textbf{Conflict} & \textbf{Severity} & \textbf{Status} & \textbf{Affected} \\
 \midrule
 1 & Q4.12 input range vs.\ raw activation magnitudes
-  & high   & open & ACU, KVCE \\
+  & high   & partially resolved & ACU, KVCE \\
 2 & FP16 routing depends on full-precision V available
   & high   & partially resolved & ACU, KVCE \\
 3 & int16 Q4.12 $\leftrightarrow$ int8/fp16 bridge unspecified
-  & high   & open & ACU, KVCE \\
+  & high   & open (urgent) & ACU, KVCE \\
 4 & GQA convention not in KVCE ISA
   & medium & open & KVCE, compiler \\
 5 & TIU cold-start eviction policy undecided
@@ -124,9 +124,9 @@ closed and what the candidate options are.
 10 & Lloyd--Max centroids vs.\ early-layer activation distribution
   & medium & open & KVCE \\
 11 & End-to-end accuracy on real LLM not measured
-  & high   & open & ACU, KVCE, integration \\
+  & high   & \textit{resolved (measured)} & ACU, KVCE, integration \\
 12 & TurboQuant+ \texttt{turbo4} noise floor obviates PC FP16 path
-  & informational & resolved & ACU, KVCE \\
+  & informational & resolved (+$5.64$ bits/tok at \texttt{turbo4}) & ACU, KVCE \\
 \bottomrule
 \end{tabular}
 \end{center}
@@ -136,7 +136,8 @@ The remainder of this document expands each entry.
 \section{Conflict 1 --- Q4.12 input range vs.\ raw activation magnitudes}
 \label{sec:c1}
 
-\textbf{Severity: high. Status: open. Affected: ACU, KVCE.}
+\textbf{Severity: high. Status: \textit{partially resolved (fix path
+validated; RTL home pending --- see \S\ref{sec:c3})}. Affected: ACU, KVCE.}
 
 KVCE accepts vectors as 64 lanes of int16 Q4.12 fixed-point, range
 $\pm 8.0$ at resolution $2^{-12}$. Real Qwen2-0.5B post-\texttt{k\_proj}
@@ -167,6 +168,19 @@ streaming. Pushes the problem onto the compiler/runtime.
 
 \textbf{Status of tracking.} Filed as \texttt{kv-cache-engine\#2}
 (see also \texttt{kvce\_acu\_integration\_audit.tex} \S5(a)).
+
+\textbf{C11 evidence (2026-06-08).} The Python-ref fix corresponding
+to resolution path~(2) above has been validated end-to-end. A per-vector
+pre-norm at the Q4.12 boundary recovers $\sim 80\,\%$ of the
+integrated-pipeline PPL gap (E $4{,}369 \rightarrow$ E\_prenorm $892$
+on Qwen2-0.5B WikiText-2; baseline $17.6$) and lifts HellaSwag from
+$0.232$ (below the $0.25$ chance line) back to $0.316$. C1's
+contribution alone is $\sim +2.05$~bits/tok PPL. Implementation:
+\texttt{kv-cache-engine@c1-q412-bridge-prenorm}
+(\texttt{sw/reference\_model/q412\_bridge.py}, regression test
+\texttt{test\_q412\_bridge.py}). Per-vector scale overhead at $\sim 8$
+bits/vector drops K compression ratio from $3.56\times$ to $\sim 3.46\times$.
+The RTL home for the bridge is the open part (see C3).
 
 \section{Conflict 2 --- FP16 routing depends on full-precision V}
 \label{sec:c2}
@@ -201,7 +215,8 @@ remains in the design pending that decision.
 \section{Conflict 3 --- int16 Q4.12 $\leftrightarrow$ int8/fp16 bridge unspecified}
 \label{sec:c3}
 
-\textbf{Severity: high. Status: open. Affected: ACU, KVCE.}
+\textbf{Severity: high. Status: \textit{open (urgent --- C11 evidence
+motivates ACU-side placement)}. Affected: ACU, KVCE.}
 
 KVCE decompresses each $K$ or $V$ vector to 64~lanes of int16 Q4.12.
 The ACU's MAC array accepts either INT8 (for the INT8 path) or
@@ -235,6 +250,18 @@ INT8/FP16 routing), or (c)~its own block between ACU and KVCE
 (over-architected for the role). Then write its RTL, reference
 model, and ISA at the same level of formality as the existing block
 specs.
+
+\textbf{C11 evidence (2026-06-08).} The C11 measurement closed C1
+in software with a per-vector pre-norm bridge on the float-to-Q4.12
+side (\texttt{kv-cache-engine@c1-q412-bridge-prenorm},
+\texttt{sw/reference\_model/q412\_bridge.py}). That bridge has to
+know the per-vector scale; if it lives on the ACU side, the KVCE bus
+carries Q4.12 unchanged and KVCE's bit-exact contract is preserved.
+The empirical evidence therefore promotes option~(a) to the
+recommended placement. The mirror-image \emph{Q4.12-to-INT8/FP16}
+half of the bridge (chip-side, ACU MAC-input) is still implicit;
+both halves should be spec'd together as a single
+\texttt{acu\_kv\_bridge.sv} sub-block.
 
 \section{Conflict 4 --- GQA convention not in KVCE ISA}
 \label{sec:c4}
@@ -394,38 +421,81 @@ as \texttt{kv-cache-engine\#3}; see
 \section{Conflict 11 --- End-to-end accuracy not measured}
 \label{sec:c11}
 
-\textbf{Severity: high. Status: open. Affected: ACU, KVCE, integration.}
+\textbf{Severity: high. Status: \textit{resolved (measured)}. Affected: ACU, KVCE, integration.}
 
-The integration audit measures per-tile relative MSE against a
-dense FP16 attention baseline. The integrated rMSE of $0.36$ is
-suggestive but does not directly bound model-output quality.
-A serious chip-level accuracy claim requires measurement of
-downstream metrics: perplexity on a held-out corpus,
-HellaSwag accuracy, or similar, with the full attention pipeline
-(ACU + KVCE round-trip + softmax + SV matmul) substituted for
-dense FP16 attention. This has not been done.
+\textbf{Resolution evidence (\texttt{c11-end-to-end-perplexity}, 2026-06-08):}
+Measured Qwen2-0.5B on WikiText-2 (n=64 chunks, 32{,}704 prediction
+tokens) and HellaSwag-val (n=250) across six configurations of the
+ACU\,$\times$\,KVCE attention substitute. The integrated as-is
+pipeline costs $+7.95$~bits/tok PPL ($248.84\times$ over baseline) and
+collapses HellaSwag below random chance. The two named contributors
+decompose cleanly:
 
-\textbf{Resolution path.} Run a held-out evaluation
-(perplexity on wikitext-2 or HellaSwag) against Qwen2-0.5B with
-attention substituted by the integrated ACU $\times$ KVCE pipeline,
-and compare to dense FP16. Filed as \texttt{kv-cache-engine\#4}.
+\begin{center}
+\begin{tabular}{@{}lrr@{}}
+\toprule
+\textbf{Source} & \textbf{PPL factor} & \textbf{bits/tok} \\
+\midrule
+PC routing on full-precision $V$ (B / A)         & $1.001\times$   & $+0.001$ \\
+C12 turbo4 noise floor alone (C\_prenorm / A)    & $49.99\times$   & $+5.64$  \\
+C1 Q4.12 clip alone (C / C\_prenorm)             & $4.15\times$    & $+2.05$  \\
+C1 inside integrated (E / E\_prenorm)            & $4.90\times$    & $+2.29$  \\
+Full integrated (E / A)                          & $248.84\times$  & $+7.95$  \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+Three findings worth recording for downstream specs:
+
+\begin{enumerate}
+\item The precision controller is end-to-end safe: B vs A is identical
+to four decimal places on HellaSwag (acc\_norm = 0.420 vs 0.420) and
+within chunk-noise on PPL (17.577 vs 17.557). No RTL changes to the
+PC.
+\item C1's Q4.12 clip is the single largest fixable contributor. A
+per-vector pre-norm at the Q4.12 boundary recovers $\sim 80\,\%$ of
+the integrated-pipeline PPL gap and lifts HellaSwag back above chance.
+See \S\ref{sec:c1} and \texttt{kv-cache-engine@c1-q412-bridge-prenorm}.
+\item C12's turbo4 noise floor is the dominant remaining cost ($\sim 50\times$
+PPL, $-0.104$ HellaSwag accuracy) even with C1 closed. Only path to
+closing this is higher-precision KVCE modes
+(\texttt{turbo8}/\texttt{turbo16}), not algorithmic refinement of
+\texttt{turbo4}.
+\end{enumerate}
+
+Full report: \texttt{docs/findings/c11\_end\_to\_end\_accuracy.md}
+(this repo). Data: \texttt{analysis/c11\_wikitext\_ppl\_runs.jsonl},
+\texttt{analysis/c11\_hellaswag\_runs.jsonl}. Figures:
+\texttt{paper/figs/c11\_ppl\_by\_config.pdf},
+\texttt{paper/figs/c11\_hellaswag.pdf}.
 
 \section{Conflict 12 --- \texttt{turbo4} noise floor obviates PC FP16 path}
 \label{sec:c12}
 
-\textbf{Severity: informational. Status: resolved (measured). Affected: ACU, KVCE.}
+\textbf{Severity: informational. Status: \textit{resolved with end-to-end
+magnitude (+$5.64$~bits/tok at \texttt{turbo4})}. Affected: ACU, KVCE.}
 
 At the current KVCE configuration (\texttt{turbo4}: 3-bit PQ +
 1-bit QJL for $K$, 3-bit PQ for $V$), the per-vector reconstruction
 noise dominates the precision controller's INT8/FP16 routing
-distinction. Quantified in
+distinction. Quantified at the tile level in
 \texttt{kvce\_acu\_integration\_audit.tex} \S5(c): KV rMSE
 $\sim 1{,}800\times$ the PC routing rMSE.
+
+\textbf{C11 evidence (2026-06-08).} The end-to-end magnitude on
+Qwen2-0.5B with C1 isolated out: $+5.64$~bits/tok PPL
+(\texttt{C\_prenorm}/A = $49.99\times$) and $-0.104$ HellaSwag accuracy.
+This is the intrinsic cost of 3-bit PolarQuant + 1-bit QJL on $K$ and
+3-bit PolarQuant on $V$ at this model scale and is not algorithmically
+removable inside \texttt{turbo4}.
 
 This is a design property of \texttt{turbo4}, not a defect. The
 PC's FP16 path would re-acquire value at higher-precision modes
 (\texttt{turbo8}, \texttt{turbo16}) where the per-vector noise
-drops. Listed here for completeness.
+drops, or under per-layer mode selection (\texttt{turbo8} on the
+worst-fit early layers, \texttt{turbo4} elsewhere; see C10 for the
+layer-0 fit issue). Resolution path tracked in
+\texttt{kv-cache-engine/CHANGES\_FROM\_C11.md} item 3.
 
 \section{Closed items (for reference)}
 \label{sec:closed}
