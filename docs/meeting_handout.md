@@ -8,8 +8,8 @@
 
 ## What LonghornSilicon is building
 
-A four-block LLM inference accelerator targeting TSMC 16FFC via the
-TSMC University Program (tape-out target Q3/Q4 2026):
+A four-block LLM inference accelerator targeting TSMC 16nm FinFET (N16FFC) via the
+TSMC University Program (tape-out target Summer 2027):
 
 1. **ACU (Attention Compute Unit)** — INT8/FP16 mixed-precision attention
    with a streaming "precision controller" that picks the precision per
@@ -17,14 +17,15 @@ TSMC University Program (tape-out target Q3/Q4 2026):
    complete**: RTL frozen, 253/253 tests pass, Sky130 end-to-end PnR
    signed off (DRC/LVS/antenna/IR-drop clean), ASAP7 area projection,
    public paper. Repo: <https://github.com/LonghornSilicon/adaptive-precision-attention>.
-2. **KV Cache Engine** — on-chip SRAM/eDRAM (8–32 MB at 16FFC) with
-   compression on writes / decompression on reads (2–4 bit
-   quantization plus outlier handling). Goal: 3–4× more context in the
-   same DRAM bandwidth. *Not yet implemented.*
+2. **KV Cache Engine** — on-chip SRAM / 3T gain-cell eDRAM with
+   ChannelQuant compression on writes / decompression on reads
+   (per-channel INT4 keys / per-token INT4 values + FP16 outlier lane).
+   Goal: ~3.8× more KV context in the same LPDDR5 bandwidth. *RTL complete
+   through Sky130 sign-off (see the kv-cache-engine repo).*
 3. **Token Importance Unit** — per-token attention-weight accumulator
    driving keep/demote/evict decisions for mixed-precision KV
    retention. *Not yet implemented.*
-4. **Memory Hierarchy Controller** — L1 SRAM / L2 eDRAM / off-chip
+4. **Memory Hierarchy Controller** — L1 SRAM / L2 3T gain-cell eDRAM / off-chip
    LPDDR5 routing with SHIELD-style refresh disable for the QO buffer
    (~35% eDRAM energy reduction). *Not yet implemented.*
 

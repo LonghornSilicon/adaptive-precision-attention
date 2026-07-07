@@ -8,7 +8,7 @@ theoretical **1.7× KV-cache bandwidth improvement** for ~30 flip-flops
 of additional silicon.
 
 This is the **ACU (Attention Compute Unit)** block of the LonghornSilicon
-LLM inference accelerator — one of four blocks targeting TSMC 16FFC tape-out.
+LLM inference accelerator — one of four blocks targeting TSMC 16nm FinFET (N16FFC) tape-out.
 
 📄 **Paper**: [`paper/adaptive_precision_attention.pdf`](paper/adaptive_precision_attention.pdf)
 🧱 **Sky130 GDS** (signed off): [`openlane/precision_controller/results/precision_controller.gds`](openlane/precision_controller/results/precision_controller.gds)
@@ -25,7 +25,7 @@ LLM inference accelerator — one of four blocks targeting TSMC 16FFC tape-out.
 | **How** | Pre-softmax ratio test: `max(|S|)·N > 10·sum(|S|)` → no division, no transcendentals |
 | **Hardware cost** | 30 flip-flops, ~30 µm² in TSMC 16FFC (~0.2% of an 8×8 INT8 MAC array) |
 | **Verified** | 253/253 testbench cases, signed off on Sky130 (DRC/LVS/antenna/IR-drop clean) |
-| **Status** | Tape-out target Q3/Q4 2026 via TSMC University Program 16FFC |
+| **Status** | Signed off on Sky130 (130nm flow). Full-chip tape-out target Summer 2027 (Lambda 16nm track) via TSMC University Program |
 
 ---
 
@@ -130,10 +130,11 @@ is in flight:
 │   │                  │         ┌──────────────────────────────┐       │
 │   │  + INT8/FP16     │  K, V   │  KV Cache Engine             │       │
 │   │  MAC array       │◀───────▶│                              │       │
-│   │                  │         │  Compress (2-4b quant,       │       │
-│   │                  │         │  GEAR / RotateKV / Lexico)   │       │
-│   └──────────────────┘         │  on writes, decompress       │       │
-│                                │  on reads                    │       │
+│   │                  │         │  ChannelQuant compress       │       │
+│   │                  │         │  (K per-channel INT4 /       │       │
+│   └──────────────────┘         │  V per-token INT4 + FP16     │       │
+│                                │  outlier lane) on writes,    │       │
+│                                │  decompress on reads         │       │
 │                                └──────────┬───────────────────┘       │
 │                                           │                            │
 │                            ┌──────────────┴──────────────┐             │
@@ -142,7 +143,7 @@ is in flight:
 │              │  Memory Hierarchy Ctrl. │   │  Off-chip LPDDR5    │    │
 │              │                         │◀─▶│  (cold KV + model   │    │
 │              │  L1 SRAM (hottest KV)   │   │   weights)          │    │
-│              │  L2 eDRAM 8-32 MB       │   └─────────────────────┘    │
+│              │  L2 3T gain-cell eDRAM  │   └─────────────────────┘    │
 │              │  (bulk on-chip KV)      │                                │
 │              │  SHIELD refresh control │                                │
 │              └─────────────────────────┘                                │
@@ -152,9 +153,9 @@ is in flight:
 | Block | This repo? | Role |
 |---|---|---|
 | **ACU (Attention Compute Unit)** | ✅ this repo | Decides INT8 vs FP16 per tile, runs the MAC array |
-| **KV Cache Engine** | not yet | Compresses K/V on write, decompresses on read (2–4 bit quantization + outlier correction) |
+| **KV Cache Engine** | not yet | ChannelQuant compress on write, decompress on read (per-channel INT4 keys / per-token INT4 values + FP16 outlier lane) |
 | **Token Importance Unit** | not yet | Tracks attention weight per cached token → mixed-precision retention (hot tokens stay high precision, cold tokens demoted or evicted) |
-| **Memory Hierarchy Controller** | not yet | Routes between L1 SRAM / L2 eDRAM / off-chip LPDDR5; uses SHIELD-style refresh disable for ~35% eDRAM energy savings |
+| **Memory Hierarchy Controller** | not yet | Routes between L1 SRAM / L2 3T gain-cell eDRAM / off-chip LPDDR5; uses SHIELD-style refresh disable for ~35% eDRAM energy savings |
 
 The precision controller is the **first** to get verified through to
 GDSII because it's the smallest, has the clearest spec, and unblocks
@@ -387,7 +388,7 @@ Detailed instructions, including troubleshooting, are in
 - [ ] **TSMC 16FFC sign-off on Cadence (waiting on PDK access)**
 - [ ] **ZCU102/104 FPGA prototype (Vivado, when board arrives)**
 - [ ] Integration with KV Cache Engine, Token Importance Unit, Memory Hierarchy Controller
-- [ ] Full-chip tape-out via TSMC University Program shuttle (target Q3/Q4 2026)
+- [ ] Full-chip tape-out via TSMC University Program shuttle (Lambda 16nm track, target Summer 2027)
 
 ---
 

@@ -58,20 +58,21 @@
 \section{What LonghornSilicon Is Building}
 \label{sec:what}
 
-A four-block LLM inference accelerator targeting TSMC 16FFC via the TSMC
-University Program (tape-out target Q3 / Q4 2026):
+A four-block LLM inference accelerator targeting TSMC 16nm FinFET (N16FFC) via the TSMC
+University Program (tape-out target Summer 2027):
 \begin{enumerate}
 \item \textbf{ACU (Attention Compute Unit)} --- INT8 / FP16 mixed-precision
   attention with a streaming \emph{precision controller} that picks the
   precision per tile from a single-cycle ratio check.\\
   \textbf{Status:} RTL frozen, 253 / 253 tests pass, Sky130 PnR signed off
   (DRC / LVS / antenna / IR-drop clean), ASAP7 area projection, public paper.
-\item \textbf{KV Cache Engine} --- on-chip SRAM / eDRAM with compression
-  (2--4 bit quantization plus outlier handling). \emph{Not yet implemented.}
+\item \textbf{KV Cache Engine} --- on-chip SRAM / 3T gain-cell eDRAM with
+  ChannelQuant compression (per-channel INT4 keys / per-token INT4 values +
+  FP16 outlier lane). \emph{RTL complete through Sky130 sign-off.}
 \item \textbf{Token Importance Unit} --- per-token attention-weight
   accumulator driving keep / demote / evict for mixed-precision KV
   retention. \emph{Not yet implemented.}
-\item \textbf{Memory Hierarchy Controller} --- L1 SRAM, L2 eDRAM, off-chip
+\item \textbf{Memory Hierarchy Controller} --- L1 SRAM, L2 3T gain-cell eDRAM, off-chip
   LPDDR5 with SHIELD-style refresh disable on short-lived data.
   \emph{Not yet implemented.}
 \end{enumerate}

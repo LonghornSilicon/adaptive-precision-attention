@@ -330,9 +330,9 @@ points isn't always enough to see the right abstraction.
 
 Per the LonghornSilicon architecture notes, the KV Cache Engine is:
 
-- 8–32 MB on-chip SRAM/eDRAM at 16FFC
-- Compression pipeline on writes, decompression on reads
-- Goal: 3–4× more context in same DRAM bandwidth
+- On-chip SRAM / 3T gain-cell eDRAM (bulk KV store)
+- ChannelQuant compression pipeline on writes, decompression on reads
+- Goal: ~3.8× more KV context in the same LPDDR5 bandwidth
 
 Specific deviations from the precision controller template you'll
 likely need:
@@ -450,8 +450,8 @@ These bit us during block #1; future-you should sidestep them.
   GitHub identity is `themoddedcube`. Project author byline is
   Chaithu Talasila. Don't reintroduce previous placeholders like
   "K-Dense AI" into any paper or doc.
-- The chip targets TSMC 16FFC via the TSMC University Program with a
-  tape-out window around Q3/Q4 2026.
+- The chip (Lambda) targets TSMC 16nm FinFET (N16FFC) via the TSMC University
+  Program with a tape-out window around Summer 2027.
 - The always-on cloud runner is named `longhorn-cloud-1`. CI workflows
   reference it via the labels `self-hosted, linux, x64`. When the
   runner gets migrated to org-level scope (see `docs/ci_setup.md`

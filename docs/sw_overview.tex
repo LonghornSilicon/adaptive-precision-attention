@@ -99,8 +99,8 @@ references it links.
 \section{What LonghornSilicon Builds}
 \label{sec:what}
 
-A four-block LLM inference accelerator targeting TSMC 16FFC via the
-TSMC University Program (tape-out target Q3/Q4 2026):
+A four-block LLM inference accelerator targeting TSMC 16nm FinFET (N16FFC) via the
+TSMC University Program (tape-out target Summer 2027):
 
 \begin{enumerate}
 \item \textbf{ACU (Attention Compute Unit)} --- decides INT8 vs FP16
@@ -109,11 +109,11 @@ TSMC University Program (tape-out target Q3/Q4 2026):
       \item Precision Controller --- ratio gate on raw scores
       \item MAC Array --- INT8 and FP16 dispatched matmul
       \end{itemize}
-\item \textbf{KV Cache Engine} --- on-chip SRAM / eDRAM with
-      compression on writes, decompression on reads.
+\item \textbf{KV Cache Engine} --- on-chip SRAM / 3T gain-cell eDRAM with
+      ChannelQuant compression on writes, decompression on reads.
 \item \textbf{Token Importance Unit} --- per-token attention-weight
       accumulator driving mixed-precision retention.
-\item \textbf{Memory Hierarchy Controller} --- L1 SRAM / L2 eDRAM /
+\item \textbf{Memory Hierarchy Controller} --- L1 SRAM / L2 3T gain-cell eDRAM /
       off-chip LPDDR5 routing.
 \end{enumerate}
 
