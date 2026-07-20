@@ -1,5 +1,11 @@
 # Adaptive Precision Attention
 
+> ⚙️ **You are on the `rtl` branch — the RTL home.** All SystemVerilog, testbenches,
+> OpenLane, golden vectors, and the reference-model parity gate live here (not on `main`).
+> **The RTL and its sign-off are 130nm (SkyWater Sky130)** — the best open-PDK proxy, used
+> for 16nm *estimates* and realizability, not the 16nm design itself. TSMC 16nm is future.
+
+
 > **Building a compiler / integrating this block?** Start with the chip-level
 > [Compiler Programming Guide](https://github.com/LonghornSilicon/architecture/blob/main/docs/compiler_programming_guide.md)
 > and the [documentation standard](https://github.com/LonghornSilicon/architecture/blob/main/docs/documentation_standard.md)
