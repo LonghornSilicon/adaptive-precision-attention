@@ -1,12 +1,4 @@
-name: CI
-
-# Thin caller for the LonghornSilicon shared block-CI workflow.
-# Logic lives at LonghornSilicon/.github/.github/workflows/block-ci.yml
-# so bug fixes propagate to every block repo on the next push.
-#
-# To make local changes to the CI logic, edit the upstream workflow
-# at github.com/LonghornSilicon/.github, NOT this file. Only the
-# inputs below are block-specific.
+name: CI (main — docs / analysis / reference / paper)
 
 on:
   push:
@@ -22,18 +14,8 @@ jobs:
   ci:
     uses: LonghornSilicon/.github/.github/workflows/block-ci.yml@main
     with:
-      # Block 1 of the LonghornSilicon chip: ACU (Attention Compute Unit).
-      # This repo holds the precision controller sub-block — the streaming
-      # INT8/FP16 ratio gate. SV top module is `precision_controller`.
       block-name: precision_controller
-
-      # Closed-form prediction: 2*SCORE_WIDTH + log2(N) + 2.
-      # For BLOCK_M=BLOCK_N=64, SCORE_WIDTH=8: 2*8 + 12 + 2 = 30.
-      expected-ff-count: 30
-
-      # sw/reference_model/ contains the bit-accurate C++ + Python references
-      # for both ACU sub-blocks (precision controller + MAC array).
-      has-reference-model: true
-
-      # paper/adaptive_precision_attention.tex is the project paper.
-      has-paper: true
+      expected-ff-count: 30         # required input; unused when has-rtl:false
+      has-rtl: false                # RTL lives on the 'rtl' branch
+      has-reference-model: false    # golden-vector parity runs on the rtl branch
+      has-paper: true               # the ACU paper builds on main

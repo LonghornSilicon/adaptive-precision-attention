@@ -1,5 +1,11 @@
 # Adaptive Precision Attention
 
+> 📐 **RTL lives on the [`rtl`](../../tree/rtl) branch, not `main`.** `main` carries the
+> spec, reference model, analysis, and paper; all SystemVerilog, testbenches, OpenLane,
+> golden vectors, and the RTL/reference CI gates live on `rtl`. The RTL and its sign-off
+> are **130nm (SkyWater Sky130)** — the best open-PDK proxy, used for 16nm *estimates*.
+
+
 > **Building a compiler / integrating this block?** Start with the chip-level
 > [Compiler Programming Guide](https://github.com/LonghornSilicon/architecture/blob/main/docs/compiler_programming_guide.md)
 > and the [documentation standard](https://github.com/LonghornSilicon/architecture/blob/main/docs/documentation_standard.md)
