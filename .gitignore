@@ -49,3 +49,8 @@ rtl/tb/mate_pv_vectors.txt
 rtl/tb/mate_pv_fp16_vectors.txt
 rtl/sim_mate.out
 rtl/sim_mate_fp16.out
+
+# ASAP7 ORFS working tree + per-run logs (regenerate with orfs/asap7/run_asap7.sh);
+# the closing-run deliverables live under orfs/asap7/<block>/results_asap7/ and ARE tracked.
+orfs/asap7/build/
+orfs/asap7/build_*.log

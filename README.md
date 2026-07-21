@@ -271,6 +271,17 @@ two area estimates differ ~5× and the frequency estimates (Sky130-scaled
 ~160 MHz vs ASAP7 ~800 MHz) do not reconcile; treat the 16nm speed/area as a
 range pending the Cadence 16FFC run, not a single number.
 
+**Measured FinFET bracket (predictive, research — not sign-off):** the same three
+signed-off tiles have now been run through a *real* predictive 7 nm FinFET flow
+(ASAP7 via OpenROAD-flow-scripts), giving a Sky130-vs-ASAP7 device-family bracket on
+identical RTL — e.g. precision_controller **80 MHz → 1.18 GHz**, cell area **3,438 →
+56 µm²**. ASAP7 is a *better device-family proxy* for the TSMC-16nm-FinFET target than
+planar Sky130 (leakage regime, fin quantization, wire-dominated delay), though its
+absolute numbers are **predictive/uncalibrated, not manufacturable**. Full table +
+disclaimers: [`docs/pdk_bracket_asap7.md`](docs/pdk_bracket_asap7.md); flow +
+reproduce: [`orfs/asap7/`](orfs/asap7/). (Note: this measured ASAP7 PnR is distinct
+from — and now grounds — the ASAP7-*derived* 16nm projection above.)
+
 ---
 
 ## Reproduce
